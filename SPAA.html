@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Query Interface</title>
+<!-- Scripts replaced with local dependencies for security -->
+
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-hover: #1a1a26;
+    --border: #2a2a3a;
+    --border-focus: #6366f1;
+    --text: #e4e4ed;
+    --text-dim: #7a7a8e;
+    --accent: #6366f1;
+    --accent-glow: rgba(99, 102, 241, 0.15);
+    --accent-bright: #818cf8;
+    --green: #34d399;
+    --red: #f87171;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  header { text-align: center; margin-bottom: 12px; }
+
+  header h1 {
+    font-size: 1.8rem; font-weight: 700; letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--accent-bright), var(--green));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  header p { color: var(--text-dim); font-size: 0.9rem; margin-top: 6px; font-weight: 300; }
+
+  #dependency-errors {
+    display: none; background: rgba(248, 113, 113, 0.15); border: 1px solid var(--red);
+    color: var(--red); padding: 12px; border-radius: var(--radius); margin-bottom: 16px;
+    font-size: 0.9rem; text-align: center;
+  }
+
+  .section { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color 0.2s; }
+  .section:has(.section-toggle:checked) { border-color: rgba(99, 102, 241, 0.3); }
+
+  .section-header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+    background: var(--surface); cursor: pointer; user-select: none; transition: background 0.2s;
+  }
+  .section-header:hover { background: var(--surface-hover); }
+  .section-header h2, .section-header h3 { font-size: 1rem; font-weight: 600; flex: 1; }
+
+  .history-badge {
+    font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; color: var(--accent-bright);
+    background: var(--accent-glow); padding: 2px 8px; border-radius: 8px; display: none;
+  }
+
+  .chevron { width: 20px; height: 20px; color: var(--text-dim); transition: transform 0.3s ease; flex-shrink: 0; }
+  .section-toggle { display: none; }
+  .section-toggle:checked ~ .section-body { max-height: 5000px; opacity: 1; padding: 20px; }
+  .section-toggle:checked ~ .section-header .chevron { transform: rotate(180deg); }
+
+  .section-body {
+    max-height: 0; opacity: 0; overflow: hidden; padding: 0 20px;
+    transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .config-row { display: flex; gap: 12px; }
+  .config-row .field { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+
+  label { font-size: 0.75rem; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  input[type="text"], textarea {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    padding: 12px 16px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input[type="text"]:focus, textarea:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px var(--accent-glow); }
+  input::placeholder, textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
+
+  .query-section { display: flex; flex-direction: column; gap: 6px; }
+  .query-section textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
+
+  .query-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+  .btn-group { display: flex; gap: 8px; }
+
+  .status { font-size: 0.78rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); transition: background 0.3s; }
+  .status-dot.loading { background: var(--accent-bright); animation: pulse 1s infinite; }
+  .status-dot.success { background: var(--green); }
+  .status-dot.error { background: var(--red); }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .send-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+    padding: 10px 28px; font-family: 'Outfit', sans-serif; font-size: 0.9rem;
+    font-weight: 600; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s; letter-spacing: 0.02em;
+  }
+  .send-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+  .send-btn:active { transform: translateY(0); }
+  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .clear-btn, .save-btn, .mic-btn {
+    background: var(--border); color: var(--text-dim); border: none; border-radius: var(--radius);
+    padding: 10px 16px; font-family: 'Outfit', sans-serif; font-size: 0.9rem; font-weight: 500;
+    cursor: pointer; transition: background 0.2s, color 0.2s;
+  }
+  .clear-btn:hover, .mic-btn:hover { background: var(--surface-hover); color: var(--text); }
+  .save-btn:hover { background: rgba(52, 211, 153, 0.15); color: var(--green); }
+
+  .response-section { display: flex; flex-direction: column; gap: 6px; }
+  .response-header { display: flex; justify-content: space-between; align-items: center; }
+  .token-info { font-size: 0.72rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+
+  .response-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
+    min-height: 160px; max-height: 500px; overflow-y: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.84rem; line-height: 1.75; color: var(--text); white-space: pre-wrap; word-break: break-word;
+  }
+  .response-box:empty::before { content: 'Response will appear here...'; color: var(--text-dim); opacity: 0.4; }
+
+  .file-upload-area { display: flex; flex-direction: column; gap: 8px; }
+  .file-upload-row { display: flex; align-items: center; gap: 10px; }
+  .file-input-label {
+    background: var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 8px 16px;
+    font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 500; cursor: pointer;
+    transition: background 0.2s, color 0.2s; white-space: nowrap;
+  }
+  .file-input-label:hover { background: var(--surface-hover); color: var(--text); }
+  .file-hidden { display: none; }
+  .file-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .file-tag {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--accent-glow);
+    color: var(--accent-bright); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    padding: 4px 10px; border-radius: 8px;
+  }
+  .file-tag .remove-file { cursor: pointer; opacity: 0.6; transition: opacity 0.2s; font-size: 0.85rem; line-height: 1; }
+  .file-tag .remove-file:hover { opacity: 1; }
+  .file-char-count { font-size: 0.72rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+
+  .image-preview-area { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .image-preview-area img { max-height: 80px; max-width: 120px; border-radius: 8px; border: 1px solid var(--border); object-fit: cover; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  .mic-btn { display: flex; align-items: center; gap: 6px; line-height: 1; padding: 10px 14px; }
+  .mic-btn.recording {
+    background: rgba(248, 113, 113, 0.15); color: var(--red); border: 1px solid rgba(248, 113, 113, 0.4);
+    box-shadow: 0 0 12px rgba(248, 113, 113, 0.15); animation: pulse 1s infinite;
+  }
+  .mic-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .mic-label { font-size: 0.8rem; }
+
+  .token-badge {
+    font-size: 0.68rem; font-family: 'JetBrains Mono', monospace; color: var(--text-dim);
+    background: var(--surface); padding: 2px 8px; border-radius: 8px; display: none; border: 1px solid var(--border);
+  }
+  .token-badge.warning { color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.08); }
+  .token-badge.critical { color: var(--red); border-color: rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.08); animation: pulse 1.5s infinite; }
+
+  .compress-panel { display: none; flex-direction: column; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-top: 6px; }
+  .compress-panel.active { display: flex; }
+  .compress-panel label { font-size: 0.73rem; }
+  .compress-panel .compress-info { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+  .compress-panel .context-file-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .compress-panel .context-file-name { font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; color: var(--accent-bright); }
+
+  .compress-btn { background: rgba(251, 191, 36, 0.12); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); border-radius: var(--radius); padding: 10px 16px; font-family: 'Outfit', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background 0.2s, color 0.2s; }
+  .compress-btn:hover { background: rgba(251, 191, 36, 0.2); color: #fde68a; }
+  .compress-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .token-warning-msg { display: none; font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; color: #fbbf24; padding: 8px 12px; background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 8px; margin-top: 4px; }
+
+  @media (max-width: 600px) {
+    .config-row { flex-direction: column; }
+    header h1 { font-size: 1.4rem; }
+    body { padding: 24px 14px; }
+    .section-header { padding: 12px 16px; }
+    .section-toggle:checked ~ .section-body { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div id="dependency-errors"></div>
+  <header>
+    <h1>SPAA: Secure and Private Agentic AI</h1>
+    <p>A secure, private agentic AI interface. Your data and AI are sandboxed from the internet, and your traffic is either encrypted or off the public internet entirely.</p>
+  </header>
+
+  <!-- Section 0: Readme -->
+  <div class="section">
+    <input type="checkbox" class="section-toggle" id="toggle-0" />
+    <label class="section-header" for="toggle-0">
+      <h2>Readme</h2>
+      <span class="token-badge"></span>
+      <span class="history-badge"></span>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </label>
+    <div class="section-body">
+      <div class="config-row">
+        <div class="field">
+          <h3>Goals</h3>
+          Enables individuals, enterprises, friends, community groups etc, to have a private and secure AI environment that they share and build together. The interface and all data reside on a server, which is sandboxed from the internet. The AI can only see the data you have uploaded to your Knowledge Collections. The setup requires many steps, however once completed, you and your users can connect from most types of devices by simply installing one security app and opening a browser. Fully scalable setup - your AWS servers can be upgraded to accomodate more users and bigger LLMs when required.<br>
+          <br>
+          <h3>Introduction</h3>
+            A lightweight, private and secure agentic AI console<br>
+            A client-side (local) browser application using a 70 KB html file<br>
+            The instance of Open WebUI on an AWS server requires only 2 vCPUs and 2GB RAM<br>
+            Open WebUI and LLM(s) are each located on AWS servers, no local hardware required<br>
+            Traffic between your device and AWS server with Open WebUI is via Tailscale (encrypted tunnel)<br>
+            The AWS server hosting your Open WebUI has no public ports open<br>
+            Traffic between your server and your private LLM on your Endpoint is encrypted or via AWS PrivateLink<br>
+            Choose from thousands of different models on Hugging Face and host private LLMs<br>
+            Once setup, other users can share your network - add users in Open WebUI and Tailscale<br>
+            Use the LLM network and SPAA console across your enterprise - scales easily<br>
+            Your LLM costs are managed in your Hugging Face account<br>
+            The code is simple, 100% transparent, and is easy to adapt to your personal or professional needs<br>
+            <br>
+            <h3>Setup</h3>
+            Below are setup instructions. Hugging Face provides access to free, open source LLMs. Once you have joined Hugging Face you can use the Inference Playground on their website and select a smart LLM to assist you set SPAA up (eg moonshotai/Kimi-K2-Instruct-0905).<br>
+            Open WebUI is an open source, self-hosted AI platform that you setup on an AWS server, and which manages LLM deployment for you (and your users).<br>
+            Tailscale is an identity-based connectivity platform that securely connects user devices with the AWS server.
+          </p>
+        </div>
+      </div>
+
+      <!-- Setup Step 1 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-1" />
+        <label class="section-header" for="toggle-setup-1">
+          <h3>1. Join Hugging Face and obtain an API Key</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>Create an account with Hugging Face. HF has a free tier for using Inference. You can consider subscribing and/or buying credits to get more inference later. Go into your account settings and create an API Key.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 2 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-2" />
+        <label class="section-header" for="toggle-setup-2">
+          <h3>2. Join AWS and setup an EC2 server</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>Create an AWS account, then launch an EC2 instance: <br>
+              STEP 1: LAUNCH EC2 INSTANCE<br><br>
+              TIP - Setup Sections 11 and 12 note that seting up AWS Private Link is much easier if both your AWS servers are located in the same Region. If you will definitely use AWS Private Link you may want to read Setup Sections 11 and 12 before selecting your Region. Otherwise, there are simple workarounds you can do later, or just start a new AWS server later.<br><br>
+  1. AWS Console > EC2 > Launch Instance<br>
+  2. Settings:<br>
+     - Name: open-webui<br>
+     - AMI: Ubuntu 24.04 LTS<br>
+     - Instance type: t3.small (2 vCPU, 2GB RAM, ARM-based, free tier eligible)<br>
+     - Key pair: Create new one, download the .pem file, save it somewhere safe<br>
+     - Storage: 8-30GB (default is fine to start)<br>
+  3. Security group - set inbound rules:<br>
+     - SSH (port 22) from "My IP" only<br>
+     - That's it for now. No other ports needed.<br>
+  4. Click Launch<br>
+  NOTE: You may see a warning about "instance store not supported" - just
+  ignore it and continue. It doesn't affect anything.<br>
+  NOTE: AWS will warn about 0.0.0.0/0 rules if you add any. That's why
+  we only add SSH from your IP.<br><br>
+  STEP 2: SSH INTO YOUR INSTANCE<br>
+  Mac/Linux:<br>
+    chmod 400 /path/to/your-key.pem<br>
+    ssh -i /path/to/your-key.pem ubuntu@&lt;your-ec2-public-ip&gt;<br>
+  Windows (PowerShell):<br>
+    ssh -i C:\path\to\your-key.pem ubuntu@&lt;your-ec2-public-ip&gt;<br><br>
+  STEP 3: INSTALL DOCKER<br>
+  Once SSH'd in:<br>
+    sudo apt update && sudo apt upgrade -y<br>
+    curl -fsSL https://get.docker.com | sh<br>
+    sudo usermod -aG docker $USER<br><br>
+  COMMON ISSUES:<br>
+    1. Windows SSH permissions<br>
+     Error: "Permissions for .pem are too open"<br>
+     Fix: icacls commands to restrict file permissions<br>
+  2. Docker permission denied<br>
+     Error: "permission denied...docker.sock"<br>
+     Fix: Run "newgrp docker" or use "sudo docker"<br>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 3 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-3" />
+        <label class="section-header" for="toggle-setup-3">
+          <h3>3. Setup Tailscale and Open WebUI on your server</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>RUN OPEN WEBUI<br>
+  sudo docker run -d \<br>
+    --name open-webui \<br>
+    --restart unless-stopped \<br>
+    -p 3000:8080 \<br>
+    -v open-webui-data:/app/backend/data \<br>
+    -e ENABLE_OLLAMA_API=false \<br>
+    ghcr.io/open-webui/open-webui:main<br>
+  Wait a minute or two for the container to pull and start.<br>
+  Check it's running: sudo docker ps<br><br>
+  OPEN AND CONNECT OPEN WEBUI<br>
+  1. Go to AWS Console > EC2 > your instance > Security tab<br>
+  2. Click the Security group link<br>
+  3. Edit inbound rules > Add rule:<br>
+     - Type: Custom TCP<br>
+     - Port: 3000<br>
+     - Source: My IP<br>
+  4. Save<br>
+  5. Open browser: http://&lt;your-ec2-public-ip&gt;:3000<br>
+  6. Create your admin account (first user becomes admin)<br><br>
+  CONNECT OPEN WEBUI TO HUGGING FACE<br>
+  1. Click your profile icon (bottom left)<br>
+  2. Go to Settings > Connections (or Admin Settings > Connections)<br>
+  3. Under the OpenAI API section:<br>
+     - URL: https://router.huggingface.co/v1<br>
+     - API Key: Your HF token (from https://huggingface.co/settings/tokens)<br>
+  4. Save<br>
+  5. Go back to chat, click the model dropdown at the top<br>
+  6. Select your model and start chatting to confirm it works<br><br>
+  INSTALL TAILSCALE ON EC2<br>
+  SSH into your EC2 instance:<br>
+    curl -fsSL https://tailscale.com/install.sh | sh<br>
+    sudo tailscale up<br>
+  It will give you a URL to authenticate - open it in your browser and log into your Tailscale account. Your EC2 will appear in your Tailscale network.<br><br>
+  INSTALL TAILSCALE ON YOUR DEVICES<br>
+  - Laptop: Download from https://tailscale.com/download<br>
+  - Phone: Install "Tailscale" from App Store / Play Store<br>
+  - Sign in with the same Tailscale account on all devices<br>
+  Open the Tailscale app on any device to see all connected machines and their Tailscale IPs (100.x.y.z format).<br><br>
+  ACCESS OPEN WEBUI VIA TAILSCALE<br>
+  1. Find your EC2's Tailscale IP:<br>
+     - Open Tailscale app on your phone or laptop<br>
+     - Look for your EC2 machine's IP (something like 100.x.y.z)<br>
+  2. On your phone browser, go to:<br>
+     http://100.x.y.z:3000<br>
+  3. Log in with the same account you created in Step 5<br>
+  4. Bookmark it or add to home screen for quick access<br>
+  5. Same URL works from laptop too<br><br>
+  LOCK DOWN SECURITY<br>
+  Now that Tailscale is working, remove all public access:<br>
+  1. Go to AWS Console > EC2 > your instance > Security tab<br>
+  2. Click the Security group<br>
+  3. Edit inbound rules<br>
+  4. DELETE the port 3000 rule (no longer needed)<br>
+  5. DELETE the SSH port 22 rule (SSH via Tailscale now)<br>
+  6. Save - your security group should have NO inbound rules<br>
+     (Tailscale works via outbound connections, needs no inbound rules)<br><br>
+  VERIFY:<br>
+  - Phone (on Tailscale): http://100.x.y.z:3000 - SHOULD work<br>
+  - Laptop (on Tailscale): http://100.x.y.z:3000 - SHOULD work<br>
+  - Public IP: http://&lt;ec2-public-ip&gt;:3000 - should NOT work (locked down)<br>
+  - SSH now only via Tailscale: ssh -i key.pem ubuntu@100.x.y.z<br><br>
+  OPTIONAL: RENAME EC2 IN TAILSCALE<br>
+  In Tailscale admin console (https://login.tailscale.com/admin/machines), you can rename your EC2 machine to something like "openwebui-server". Then access it as: http://openwebui-server:3000<br><br>
+  COMMON ISSUES:<br>
+  Open WebUI not loading in browser<br>
+     Error: "took too long to respond"<br>
+     Fix: Port 3000 wasn't open in security group<br>
+  Couldn't find HF connection settings<br>
+     Wrong: Settings > Manage Tool Servers<br>
+     Right: Settings > Connections > OpenAI API section<br>
+  </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 4 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-4" />
+        <label class="section-header" for="toggle-setup-4">
+          <h3>4. Setup config.js</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>Here is the text for the default configuration file. Paste the below into a text editor and save it as config.js. Add your Open WebUI API key and server URL and the SPAA is ready to use.<br><br>
+              // config.js<br>
+    const CONFIG = {<br>
+    apiKey: 'XXXX',<br>
+    serverUrl: 'XXXX',<br>
+    defaultModel: 'Qwen/Qwen3-4B-Instruct-2507',<br>
+    systemPrompt: 'Key facts: This system prompt is injected into every chat. Add key details about your business, high level aims and goals, and/or personal details etc. Explain how you want the LLM to interact with you - eg concise and professional, lighthearted and full of jokes, etc.',<br>
+    sectionModels: {<br>
+      1: 'Qwen/Qwen3-4B-Instruct-2507',<br>
+      2: 'Qwen/Qwen3-VL-30B-A3B-Instruct',<br>
+      3: 'myendpoint',<br>
+      4: 'Qwen/Qwen3-Coder-Next-FP8',<br>
+      5: 'moonshotai/Kimi-K2-Instruct-0905'<br>
+    },<br>
+    sectionTools: {<br>
+      1: [],<br>
+      2: [],<br>
+      3:[],<br>
+      4: [],<br>
+      5:[]<br>
+    },<br>
+    sectionKnowledge: {<br>
+      1: [],<br>
+      2:[],<br>
+      3: [],<br>
+      4: [],<br>
+      5:[]<br>
+    },<br>
+    sectionSkills: {<br>
+      1: '*Role* You are an intelligent generalist and all-round assistant',<br>
+      2: '*Role* You are an expert Visual Analysis AI. Your primary function is to interpret and describe images with high accuracy.',<br>
+      3: '*Role* You are an expert Prompt Engineer and LLM Optimization Specialist. Your goal is to transform vague, informal, or incomplete user inputs into highly structured, precise, and effective prompts suitable for large language models.',<br>
+      4: '*Role* You are a code writer. Write clean, efficient code with comments.',<br>
+      5: '*Role* You are a highly intelligent LLM. Please be careful with how many tokens are being generated, so be concise and if a response is likely to be larger than 10000 tokens, check with the user first if ok to proceed.'<br>
+     }<br>
+  };<br>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 5 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-5" />
+        <label class="section-header" for="toggle-setup-5">
+          <h3>5. Personalise config.js</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>Personalise your configuration by updating the fields.<br><br>
+              The system prompt gets injected into every chat. The model, tool, knowledge and skills are able to be defined seperately for each section, and will only be injected into chats within that section.<br>
+              I deleted most of my personal fields but retained my default LLM model selections which match the basic functions of the agents for demonstration purposes of agentic setup, but these can be set to anything. Users can also make new LLM models by adding to base LLM models in Open WebUI, then call those models in config.js (see the Open WebUI docs).<br><br>
+              You can add section tools, knowledge and skills. I kept some basic skill definitions here. You can do a great deal with strong skills definitions. The way Open WebUI handles knowledge is extremely efficient. You can set up multiple Knowledge Collections on different facets of your enterprise, then make them available to one or more Sections on your SPAA. Eg, materials, suppliers, contacts, invoices, contracts, training docs, product catalogues, reference materials, price lists, email contents, strategy docs, marketing campaigns, previous LLM chats and solutions, etc. Open WebUI will search Collection(s) via RAG for any relevant materials before it sends a query, then injects them into the chat. This allows you to selectively supply documents to your AI, instead of giving the AI open access to your data or systems. 
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 6 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-6" />
+        <label class="section-header" for="toggle-setup-6">
+          <h3>6. Memory setup and maintanence</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>Knowledge is managed in Open WebUI on the AWS server. You can read the Open WebUI help, but basically you create a Knowledge Collection and add files to it. It can be used as a Permanent Memory for your business and/or personal files, and an ongoing memory of your chats (for important chats that you want to refer to later (remember), download the chat file then upload it to your Knowledge Collection). Knowledge Collection(s) can be provided to a Section by adding the ID of the collection in config.js (click on the Knowledge Collection in Open WebUI and the ID is found in the web address - eg df6968fe-c557-2ecc-19ea-6f8723a1f7987). When a section has a Knowledge Collection assigned to it, Open WebUI does the retrieval from your knowledge collection (RAG) and injects the best-matching snippets into the prompt before it leaves.<br>TIP - upload a pdf of your product prices to Knowledge Collection then query an LLM about what is price of product X, to confirm you have it setup properly.<br><br>Privacy: The data in your Knowledge Collections are stored on your server in Open WebUI. Your privacy and security is maintained by AWS. You access the server via TailScale only, and closed your server public ports, therefore your server is not exposed to port attacks (Setup Section 3). Therefore your server and data traffic are protected.<br><br>No record is kept of the contents of any chats you have with your LLMs. However, some chats you will want to keep to refer to later. There are buttons to download your chats, and you can define where they are saved to in your browser. Upload these to a Knowledge Collection in Open WebUI. You can also compress the chat (which tells the LLM to summarise the chat prior to saving).<br>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 7 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-7" />
+        <label class="section-header" for="toggle-setup-7">
+          <h3>7. Open the html file with a browser, or run a local server</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>To use the AI console on a device, Tailscale must first be setup on that device, which you would have done on at least one device in Setup Section 3. Place the html and config.js files in the same folder on your device. Open the file directly in a browser. <br>TIP - You may get better performance (eg with the microphone) by starting a local server in a terminal (using for example Python on a PC), or using an App to start a server on mobile OS. You can also consider setting Tailscale to https instead of http to improve performance, however if you use a local server this is redundant.<br>
+            <br>
+            Note that for security reasons the html file does not automatically go onto the internet to collect file converters for xlsx, docx and pdf files. You need to manually download them and place them in the same folder as the html file if you wish to do such conversions: pdf.worker.min.js, xlsx.full.min.js and mammoth.browser.min.js (google them and download).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 8 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-8" />
+        <label class="section-header" for="toggle-setup-8">
+          <h3>8. As Admin of Open WebUI, add users</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>Log into Open WebUI, go to Users tab - Invite User and enter their email. They will get a join link.
+              <br>As Admin of the network, you can invite any users you wish. Users will install Tailscale and join your private network. They can access the Open WebUI network and can contribute to the Workspace, adding models, knowledge etc. Users can also modify their config.js to personalise their SPAA. Users do not need to do any of the above setup, that only needs to be done once by the Admin.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 9 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-9" />
+        <label class="section-header" for="toggle-setup-9">
+          <h3>9. Users install Tailscale and open the html file</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>Most devices and OS have a Tailscale app (MacOS, iOS, Windows, Linux, Android). Install the app, the Tailscale Admin approves them joining the network, then the html file can be run. Each user can personalise their SPAA without modifying the html code via config.js.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 10 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-10" />
+        <label class="section-header" for="toggle-setup-10">
+          <h3>10. Use SPAA with LLMs from Hugging Face Inference Providers</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>You and your users can select from thousands of models on Hugging Face using Inference Providers (more than 10 Inference Providers whom Hugging Face contracts to host their models). Each LLM has a name (eg moonshotai/Kimi-K2-Instruct-0905) which is simply entered into the SPAA html page, and/or to config.js. These Inference Providers run the LLMs on their servers, and all have security and privacy policies. If you intend to run LLM(s) in the fully private and secure method you can try out different models first (eg without using any private data), then when ready you can deploy your favourite model(s) in private Inference Endpoint(s), as outlined below. Your SPAA Sections can refer to either an Inference Provider LLM or a private Inference Endpoint LLM.<br>
+              Users can use their own Hugging Face accounts and pay for their own inference, or an enterprise might consider an enterprise plan with Hugging Face. Costs will be billed to the Hugging Face acocunt that owns the API key referenced in the Open WebUI Connection for the model that makes the query.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 11 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-11" />
+        <label class="section-header" for="toggle-setup-11">
+          <h3>11. Start Inference Endpoint(s) on Hugging Face</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>In Hugging Face go to Inference Endpoints. These work by Hugging Face creating an instance of an LLM on a server hosted by AWS (other providers are available). View the catalogue and select an LLM. Make this server private (in Authentication), such that the model is available 24/7 for your personal usage (and your invited users). You will get a private URL and then traffic between your server with Open WebUI and your server with your LLM will be direct with no third party (AWS server to AWS server). TLS/SSL encryption is used to secure data during transit. You can setup an even more secure transit method by enabling AWS Private Link (in Network) when you create your Endpoint. AWS sends traffic between your two AWS servers via private IP addresses on the AWS network, such that your traffic never traverses the public internet. This method can be useful for enterprise compliance purposes for sensitive data security.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 12 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-12" />
+        <label class="section-header" for="toggle-setup-12">
+          <h3>12. Configure AWS PrivateLink between Endpoint and server</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>There is a tutorial and docs on Hugging Face to demonstrate the setup. TIP - AWS has recently introduced setting up Private Link between servers in different regions, however its tricky and may need to be done manually (either copying your server image to a new server in another location or routing between locations). It is much easier if both your AWS servers are located in the same Region. </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 13 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-13" />
+        <label class="section-header" for="toggle-setup-13">
+          <h3>13. Update config.js favourite models with your Endpoint(s)</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>Your AWS server hosting your LLM is reached at a private URL. In Open WebUI go to Admin panel - Settings - Connections and 
+              create a new connection. Add the private URL (you may need to add /v1 at the end) and your HF API Key. You can leave the model name blank. To setup your private LLM its easier to first disable any other connections you have, so your not looking for it amongst 1000 others. Just open them and click disable (and return later and enable them again). Go Workspace - Models and add a new model. Select your private LLM model. Add a memorable name (no spaces) and save it (eg 'myendpoint'). Check it works - open a new chat and select 'myendpoint' and say hello. Back on your SPAA html page you can select the model using simply 'myendpoint', and you can update your config.js file to select this model by default.<br><br>
+              You can have one or more sections in your SPAA using your private LLM, and other sections using the models from the Inference Providers on Hugging Face. The difference lies in how your traffic is handled. When you use your private LLM your traffic goes between two AWS servers, either encrypted or through Private Link. Using the Inference Providers your traffic goes from your AWS server with Open WebUI to one of more than 10 Inference Providers, whom Hugging Face contracts to host their models. All these Providers have privacy and security policies, but it is intrinsically less secure than using a private LLM.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Step 14 -->
+      <div class="section">
+        <input type="checkbox" class="section-toggle" id="toggle-setup-14" />
+        <label class="section-header" for="toggle-setup-14">
+          <h3>14. Costs</h3>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </label>
+        <div class="section-body">
+          <div class="config-row">
+            <p>If you used AWS for your server hosting Open WebUI, you may have gotten a free period initially, however server costs are quite low as Open WebUI has low computational demand. Hugging Face has different pricing options depending on your requirements. You start with a free account and you can setp up everything and start using models from the Inference Providers. You pay by token usage and you can find these prices on their webpage. Some of the small models can be used basically for free they are so cheap. However the latest and largest models cost a lot more than the small and less capable models. If you purchase a subscription you can access many more tokens per month, and you can also purchase credits.<br><br>
+              Private Inference Endpoints are priced based on which model you host. The costs are directly related to the model size since you need to purchase enough RAM to run the model. You pay for server up-time, and can use as many tokens as you want while its up, and you are billed from your purchased credits. The server stops after 1 hour of inactivity. Note they are easy to start and delete, so you can try different models and if you dont like them just delete the Endpoint. You can also have many Endpoints and link them all to your AWS Private Link.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic Functional Sections injected here -->
+  <div id="dynamic-sections" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;"></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+(async () => {
+  window.pdfjsLib = await import('./pdf.worker.min.js').catch(() =>
+    console.warn('PDF support disabled: pdf.worker.min.js not found'));
+  window.XLSX     = await import('./xlsx.full.min.js').catch(() =>
+    console.warn('Excel support disabled: xlsx.full.min.js not found'));
+  window.mammoth   = await import('./mammoth.browser.min.js').catch(() =>
+    console.warn('DOCX support disabled: mammoth.browser.min.js not found'));
+})();
+  // ==========================================
+  // 1. DYNAMICALLY GENERATE UI SECTIONS
+  // ==========================================
+  const UI_SECTIONS =[
+    { id: 1, title: 'Cheap assistant', isImage: false, placeholder: 'e.g. llama3, mistral, gpt-4o' },
+    { id: 2, title: 'Image Interpreter', isImage: true, placeholder: 'e.g. gpt-4o, llava, gemini' },
+    { id: 3, title: 'Prompt engineer', isImage: false, placeholder: 'e.g. llama3, mistral, gpt-4o' },
+    { id: 4, title: 'Coder', isImage: false, placeholder: 'e.g. llama3, mistral, gpt-4o' },
+    { id: 5, title: 'Expensive Expert', isImage: false, placeholder: 'e.g. llama3, mistral, gpt-4o' }
+  ];
+
+  const sectionsContainer = document.getElementById('dynamic-sections');
+
+  const dynamicHTML = UI_SECTIONS.map(config => {
+    const attachLabel = config.isImage ? "Attach Images" : "Attach Files";
+    const chooseLabel = config.isImage ? "Choose images" : "Choose files";
+    const acceptExts = config.isImage ? ".png,.jpg,.jpeg,.gif,.webp" : ".pdf,.txt,.csv,.md,.json,.docx,.xlsx";
+    const previewArea = config.isImage ? `<div class="image-preview-area"></div>` : "";
+
+    return `
+  <div class="section" data-section="${config.id}">
+    <input type="checkbox" class="section-toggle" id="toggle-${config.id}" />
+    <label class="section-header" for="toggle-${config.id}">
+      <h2>${config.title}</h2>
+      <span class="token-badge"></span>
+      <span class="history-badge"></span>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </label>
+    <div class="section-body">
+      <div class="config-row">
+        <div class="field">
+          <label>Model</label>
+          <input type="text" class="model-input" placeholder="${config.placeholder}" />
+        </div>
+      </div>
+      <div class="file-upload-area">
+        <label>${attachLabel}</label>
+        <div class="file-upload-row">
+          <label class="file-input-label">${chooseLabel}
+            <input type="file" class="file-hidden file-input" multiple accept="${acceptExts}" />
+          </label>
+          <span class="file-char-count"></span>
+        </div>
+        <div class="file-list"></div>
+        ${previewArea}
+      </div>
+      <div class="query-section">
+        <label>Query</label>
+        <textarea class="query-input" placeholder="Type your prompt here..."></textarea>
+        <div class="query-actions">
+          <div class="status">
+            <span class="status-dot"></span>
+            <span class="status-text">Ready</span>
+          </div>
+          <div class="btn-group">
+            <button class="mic-btn" type="button" title="Voice input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg><span class="mic-label">Mic</span></button>
+            <button class="clear-btn">Clear</button>
+            <button class="send-btn">Send Query</button>
+          </div>
+        </div>
+      </div>
+      <div class="response-section">
+        <div class="response-header">
+          <label>Response</label>
+          <span class="token-info"></span>
+        </div>
+        <div class="response-box"></div>
+        <div class="btn-group" style="margin-top: 10px;">
+          <button class="save-btn save-chat-btn">Save full chat</button>
+          <button class="save-btn save-response-btn">Save last response</button>
+        </div>
+        <div class="token-warning-msg"></div>
+        <div class="btn-group" style="margin-top: 6px;">
+          <button class="compress-btn compress-toggle-btn">Compress Chat</button>
+        </div>
+        <div class="compress-panel">
+          <div class="compress-info">Compress current chat into a project context file. Optionally upload a previous context file to merge with.</div>
+          <div class="context-file-row">
+            <label class="file-input-label">Upload previous context
+              <input type="file" class="file-hidden context-file-input" accept=".txt" />
+            </label>
+            <span class="context-file-name"></span>
+          </div>
+          <div class="btn-group">
+            <button class="compress-btn compress-execute-btn">Compress &amp; Download</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  }).join('');
+
+  sectionsContainer.innerHTML = dynamicHTML;
+
+  // ==========================================
+  // 2. MAIN APPLICATION LOGIC
+  // ==========================================
+  const MAX_FILE_SIZE = 5048576; // 5MB
+  const ALLOWED_FILE_EXTS =['pdf', 'txt', 'csv', 'md', 'json', 'docx', 'xlsx', 'html'];
+  const ALLOWED_IMAGE_EXTS =['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
+  const serverUrl = (typeof CONFIG !== 'undefined' && CONFIG.serverUrl) ? CONFIG.serverUrl.replace(/\/+$/, '') : '';
+  const apiKey = (typeof CONFIG !== 'undefined' && CONFIG.apiKey) ? CONFIG.apiKey : '';
+  const defaultModel = (typeof CONFIG !== 'undefined' && CONFIG.defaultModel) ? CONFIG.defaultModel : '';
+  const systemPrompt = (typeof CONFIG !== 'undefined' && CONFIG.systemPrompt) ? CONFIG.systemPrompt : '';
+  const sectionSkills = (typeof CONFIG !== 'undefined' && CONFIG.sectionSkills) ? CONFIG.sectionSkills : {};
+  const sectionModels = (typeof CONFIG !== 'undefined' && CONFIG.sectionModels) ? CONFIG.sectionModels : {};
+
+  const defaultTokenWarning = 5000;
+  const tokenWarningThresholds = (typeof CONFIG !== 'undefined' && CONFIG.tokenWarning) ? CONFIG.tokenWarning : {};
+  function getTokenWarning(sectionNum) {
+    return tokenWarningThresholds[sectionNum] || defaultTokenWarning;
+  }
+
+  const COMPRESS_PROMPT = `You are a context compression assistant. You will be given a conversation (and optionally a previous project context file). Produce an updated, consolidated plain text context document that merges everything.
+
+Rules:
+- Remove redundancy, keep all key information
+- Use this exact structure with UPPERCASE headers:
+
+PROJECT OVERVIEW
+(Brief summary of what this project/conversation is about)
+
+KEY DECISIONS
+(Bullet points of decisions made, with reasoning if relevant)
+
+CURRENT STATE
+(Where things stand right now)
+
+OPEN QUESTIONS / NEXT STEPS
+(Anything unresolved or planned)
+
+TECHNICAL DETAILS
+(Specific facts, configs, code snippets, or data worth preserving)
+
+- Be concise but thorough — do not lose important details
+- Write in plain text only, no markdown formatting
+- Keep the output as short as possible while preserving all essential context`;
+
+  // PDF.js worker
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
+  }
+
+  function downloadTxt(filename, content) {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function getTimestamp() {
+    return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  }
+
+  async function extractPdfText(arrayBuffer) {
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return text.trim();
+  }
+
+  async function extractDocxText(arrayBuffer) {
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return result.value.trim();
+  }
+
+  function extractXlsxText(arrayBuffer) {
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    let text = '';
+    workbook.SheetNames.forEach(name => {
+      text += `--- Sheet: ${name} ---\n`;
+      const sheet = workbook.Sheets[name];
+      text += XLSX.utils.sheet_to_csv(sheet) + '\n\n';
+    });
+    return text.trim();
+  }
+
+  async function extractFileContent(file) {
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (ext === 'pdf') {
+      return await extractPdfText(await file.arrayBuffer());
+    } else if (ext === 'docx') {
+      return await extractDocxText(await file.arrayBuffer());
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      return extractXlsxText(await file.arrayBuffer());
+    } else {
+      return await file.text();
+    }
+  }
+
+  async function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // --- Main section loop ---
+  document.querySelectorAll('.section[data-section]').forEach(section => {
+    const sectionNum = section.dataset.section;
+    const modelInput = section.querySelector('.model-input');
+    const queryInput = section.querySelector('.query-input');
+    const responseBox = section.querySelector('.response-box');
+    const sendBtn = section.querySelector('.send-btn');
+    const clearBtn = section.querySelector('.clear-btn');
+    const saveChatBtn = section.querySelector('.save-chat-btn');
+    const saveResponseBtn = section.querySelector('.save-response-btn');
+    const statusDot = section.querySelector('.status-dot');
+    const statusText = section.querySelector('.status-text');
+    const tokenInfo = section.querySelector('.token-info');
+    const historyBadge = section.querySelector('.history-badge');
+
+    const fileInput = section.querySelector('.file-input');
+    const fileListEl = section.querySelector('.file-list');
+    const fileCharCount = section.querySelector('.file-char-count');
+    const imagePreviewArea = section.querySelector('.image-preview-area');
+
+    const hasFileUpload = !!fileInput;
+    const isImageSection = sectionNum === '2';
+
+    const chatHistory =[];
+    const attachedFiles =[];     
+    const attachedImages =[];    
+
+    let totalTokensIn = 0;
+    let totalTokensOut = 0;
+    const tokenBadge = section.querySelector('.token-badge');
+    const tokenWarningMsg = section.querySelector('.token-warning-msg');
+
+    const compressToggleBtn = section.querySelector('.compress-toggle-btn');
+    const compressPanel = section.querySelector('.compress-panel');
+    const compressExecuteBtn = section.querySelector('.compress-execute-btn');
+    const contextFileInput = section.querySelector('.context-file-input');
+    const contextFileName = section.querySelector('.context-file-name');
+    let previousContext = ''; 
+
+    if (sectionModels[sectionNum]) {
+      modelInput.value = sectionModels[sectionNum];
+    } else if (defaultModel) {
+      modelInput.value = defaultModel;
+    }
+
+    function setStatus(state, msg) {
+      statusDot.className = 'status-dot ' + state;
+      statusText.textContent = msg;
+    }
+
+    function updateBadge() {
+      const turns = Math.floor(chatHistory.length / 2);
+      if (turns > 0) {
+        historyBadge.textContent = turns + ' turn' + (turns > 1 ? 's' : '');
+        historyBadge.style.display = 'inline';
+      } else {
+        historyBadge.style.display = 'none';
+      }
+    }
+
+    function updateTokenBadge() {
+      if (totalTokensIn === 0 && totalTokensOut === 0) {
+        tokenBadge.style.display = 'none';
+        tokenWarningMsg.style.display = 'none';
+        return;
+      }
+      const threshold = getTokenWarning(sectionNum);
+      const total = totalTokensIn + totalTokensOut;
+      tokenBadge.textContent = `${totalTokensIn.toLocaleString()} in / ${totalTokensOut.toLocaleString()} out`;
+      tokenBadge.style.display = 'inline';
+
+      if (totalTokensIn >= threshold * 1.5) {
+        tokenBadge.className = 'token-badge critical';
+        tokenWarningMsg.textContent = `Prompt tokens (${totalTokensIn.toLocaleString()}) well over threshold (${threshold.toLocaleString()}). Compress chat to reduce context size and cost.`;
+        tokenWarningMsg.style.display = 'block';
+      } else if (totalTokensIn >= threshold) {
+        tokenBadge.className = 'token-badge warning';
+        tokenWarningMsg.textContent = `Prompt tokens (${totalTokensIn.toLocaleString()}) reached threshold (${threshold.toLocaleString()}). Consider compressing chat.`;
+        tokenWarningMsg.style.display = 'block';
+      } else {
+        tokenBadge.className = 'token-badge';
+        tokenWarningMsg.style.display = 'none';
+      }
+    }
+
+    // --- Compress panel logic ---
+    compressToggleBtn.addEventListener('click', () => {
+      compressPanel.classList.toggle('active');
+    });
+
+    contextFileInput.addEventListener('change', async () => {
+      const file = contextFileInput.files[0];
+      if (!file) return;
+
+      if (file.size > MAX_FILE_SIZE) {
+        setStatus('error', 'Context file exceeds 5MB limit');
+        contextFileInput.value = '';
+        return;
+      }
+      const ext = file.name.toLowerCase().split('.').pop();
+      if (ext !== 'txt') {
+        setStatus('error', 'Only .txt files are allowed for context');
+        contextFileInput.value = '';
+        return;
+      }
+
+      try {
+        previousContext = await file.text();
+        contextFileName.textContent = file.name + ` (${previousContext.length.toLocaleString()} chars)`;
+        setStatus('success', 'Previous context loaded');
+      } catch (e) {
+        setStatus('error', 'Failed to read context file');
+      }
+      contextFileInput.value = '';
+    });
+
+    compressExecuteBtn.addEventListener('click', async () => {
+      const model = modelInput.value.trim();
+      if (!serverUrl) { setStatus('error', 'Set serverUrl in config.js'); return; }
+      if (!model) { setStatus('error', 'Enter a model name'); return; }
+      if (chatHistory.length === 0 && !previousContext) { setStatus('error', 'No chat or context to compress'); return; }
+
+      compressExecuteBtn.disabled = true;
+      setStatus('loading', 'Compressing...');
+
+      let chatText = '';
+      chatHistory.forEach(msg => {
+        const role = msg.role.toUpperCase();
+        if (typeof msg.content === 'string') {
+          chatText += `[${role}]\n${msg.content}\n\n`;
+        } else {
+          msg.content.forEach(part => {
+            if (part.type === 'text') chatText += `[${role}]\n${part.text}\n\n`;
+          });
+        }
+      });
+
+      let userContent = '';
+      if (previousContext) {
+        userContent += `PREVIOUS PROJECT CONTEXT:\n${'='.repeat(40)}\n${previousContext}\n\n`;
+      }
+      if (chatText) {
+        userContent += `NEW CONVERSATION TO MERGE:\n${'='.repeat(40)}\n${chatText}`;
+      }
+
+      const endpoint = serverUrl + '/api/chat/completions';
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+
+      const body = {
+        model: model,
+        messages:[
+          { role: 'system', content: COMPRESS_PROMPT },
+          { role: 'user', content: userContent }
+        ],
+        stream: false
+      };
+
+      try {
+        const res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errText.slice(0, 300)}`);
+        }
+        const json = await res.json();
+        const compressed = json.choices?.[0]?.message?.content || '';
+        if (!compressed) throw new Error('Empty response from model');
+
+        const header = `Project Context - Section ${sectionNum}\nModel: ${model}\nCompressed: ${new Date().toLocaleString()}\nPrevious context merged: ${previousContext ? 'Yes' : 'No'}\n${'='.repeat(50)}\n\n`;
+        const output = header + compressed;
+
+        downloadTxt(`context-section${sectionNum}-${getTimestamp()}.txt`, output);
+        setStatus('success', 'Context compressed & downloaded');
+
+        responseBox.textContent = compressed;
+
+      } catch (err) {
+        setStatus('error', 'Compress failed');
+        responseBox.textContent = 'Compression error: ' + err.message;
+      } finally {
+        compressExecuteBtn.disabled = false;
+      }
+    });
+
+    function updateFileCharCount() {
+      if (!fileCharCount) return;
+      if (isImageSection) {
+        const count = attachedImages.length;
+        fileCharCount.textContent = count > 0 ? `${count} image(s)` : '';
+      } else {
+        const total = attachedFiles.reduce((sum, f) => sum + f.content.length, 0);
+        if (total > 0) {
+          const approxTokens = Math.round(total / 4);
+          fileCharCount.textContent = `${total.toLocaleString()} chars (~${approxTokens.toLocaleString()} tokens)`;
+        } else {
+          fileCharCount.textContent = '';
+        }
+      }
+    }
+
+    function renderFileTags() {
+      if (!fileListEl) return;
+      fileListEl.textContent = ''; 
+      const items = isImageSection ? attachedImages : attachedFiles;
+      items.forEach((f, idx) => {
+        const tag = document.createElement('span');
+        tag.className = 'file-tag';
+
+        const textNode = document.createTextNode(f.name + ' ');
+        tag.appendChild(textNode);
+
+        const removeSpan = document.createElement('span');
+        removeSpan.className = 'remove-file';
+        removeSpan.dataset.idx = idx;
+        removeSpan.textContent = '×'; 
+        tag.appendChild(removeSpan);
+
+        fileListEl.appendChild(tag);
+      });
+      fileListEl.querySelectorAll('.remove-file').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const arr = isImageSection ? attachedImages : attachedFiles;
+          arr.splice(parseInt(btn.dataset.idx), 1);
+          renderFileTags();
+          updateFileCharCount();
+          if (isImageSection && imagePreviewArea) renderImagePreviews();
+        });
+      });
+      updateFileCharCount();
+    }
+
+    function renderImagePreviews() {
+      if (!imagePreviewArea) return;
+      imagePreviewArea.textContent = ''; 
+      attachedImages.forEach(img => {
+        const el = document.createElement('img');
+        el.src = img.dataUrl;
+        el.alt = img.name; 
+        imagePreviewArea.appendChild(el);
+      });
+    }
+
+    if (hasFileUpload) {
+      fileInput.addEventListener('change', async () => {
+        const files = Array.from(fileInput.files);
+        if (files.length === 0) return;
+
+        const oversized = files.filter(f => f.size > MAX_FILE_SIZE);
+        if (oversized.length > 0) {
+          setStatus('error', `File(s) exceed 5MB limit: ${oversized.map(f => f.name).join(', ')}`);
+          fileInput.value = '';
+          return;
+        }
+
+        const invalidType = files.filter(f => {
+          const ext = f.name.toLowerCase().split('.').pop();
+          return isImageSection ? !ALLOWED_IMAGE_EXTS.includes(ext) : !ALLOWED_FILE_EXTS.includes(ext);
+        });
+        if (invalidType.length > 0) {
+           setStatus('error', `Invalid file format: ${invalidType.map(f => f.name).join(', ')}`);
+           fileInput.value = '';
+           return;
+        }
+
+        setStatus('loading', 'Reading files...');
+
+        for (const file of files) {
+          try {
+            if (isImageSection) {
+              const dataUrl = await fileToBase64(file);
+              attachedImages.push({ name: file.name, dataUrl });
+            } else {
+              const content = await extractFileContent(file);
+              attachedFiles.push({ name: file.name, content });
+            }
+          } catch (e) {
+            if (!isImageSection) {
+              attachedFiles.push({ name: file.name, content: `[Error reading file: ${e.message}]` });
+            }
+            console.error(`Error reading ${file.name}:`, e);
+          }
+        }
+
+        renderFileTags();
+        if (isImageSection) renderImagePreviews();
+        const count = isImageSection ? attachedImages.length : attachedFiles.length;
+        setStatus('success', `${count} file(s) attached`);
+        fileInput.value = '';
+      });
+    }
+
+    // Clear button
+    clearBtn.addEventListener('click', () => {
+      chatHistory.length = 0;
+      attachedFiles.length = 0;
+      attachedImages.length = 0;
+      totalTokensIn = 0;
+      totalTokensOut = 0;
+      previousContext = '';
+      contextFileName.textContent = '';
+      compressPanel.classList.remove('active');
+      if (recognition && isRecording) { recognition.stop(); }
+      if (hasFileUpload) {
+        renderFileTags();
+        if (isImageSection && imagePreviewArea) imagePreviewArea.textContent = '';
+      }
+      responseBox.textContent = '';
+      queryInput.value = '';
+      tokenInfo.textContent = '';
+      setStatus('', 'Ready');
+      updateBadge();
+      updateTokenBadge();
+    });
+
+    // Save full chat history as txt
+    saveChatBtn.addEventListener('click', () => {
+      if (chatHistory.length === 0) { setStatus('error', 'No chat to save'); return; }
+      let text = `Chat History - Section ${sectionNum}\nModel: ${modelInput.value.trim()}\nDate: ${new Date().toLocaleString()}\n${'='.repeat(50)}\n\n`;
+      chatHistory.forEach(msg => {
+        const role = msg.role.toUpperCase();
+        if (typeof msg.content === 'string') {
+          text += `[${role}]\n${msg.content}\n\n`;
+        } else {
+          msg.content.forEach(part => {
+            if (part.type === 'text') text += `[${role}]\n${part.text}\n\n`;
+            if (part.type === 'image_url') text += `[${role}]\n[Image attached]\n\n`;
+          });
+        }
+      });
+      downloadTxt(`chat-section${sectionNum}-${getTimestamp()}.txt`, text);
+      setStatus('success', 'Chat saved');
+    });
+
+    // Save last response only as txt
+    saveResponseBtn.addEventListener('click', () => {
+      const lastResponse = responseBox.textContent;
+      if (!lastResponse || lastResponse === '(Empty response from server)') { setStatus('error', 'No response to save'); return; }
+      let text = `Response - Section ${sectionNum}\nModel: ${modelInput.value.trim()}\nDate: ${new Date().toLocaleString()}\n${'='.repeat(50)}\n\n${lastResponse}`;
+      downloadTxt(`response-section${sectionNum}-${getTimestamp()}.txt`, text);
+      setStatus('success', 'Response saved');
+    });
+
+    sendBtn.addEventListener('click', () => sendQuery());
+    queryInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendQuery();
+    });
+
+    // --- Microphone (Web Speech API) ---
+    const micBtn = section.querySelector('.mic-btn');
+    const micLabel = micBtn.querySelector('.mic-label');
+    let recognition = null;
+    let isRecording = false;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      micBtn.addEventListener('click', () => {
+        if (isRecording) {
+          recognition.stop();
+          return;
+        }
+
+        if (recognition) recognition.stop();
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;   
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        let textBefore = '';
+        let textAfter  = '';
+
+        recognition.onstart = () => {
+          isRecording = true;
+          micBtn.classList.add('recording');
+          micLabel.textContent = 'Stop';
+          setStatus('loading', 'Listening...');
+        };
+
+        recognition.onresult = (e) => {
+          const finalTranscript = Array.from(e.results)
+                                     .map(r => r[0].transcript)
+                                     .join('');
+          queryInput.value = textBefore + finalTranscript + textAfter;
+        };
+
+        recognition.onerror = (e) => {
+          if (e.error !== 'aborted') setStatus('error', 'Mic error: ' + e.error);
+          isRecording = false;
+          micBtn.classList.remove('recording');
+          micLabel.textContent = 'Mic';
+        };
+
+        recognition.onend = () => {
+          isRecording = false;
+          micBtn.classList.remove('recording');
+          micLabel.textContent = 'Mic';
+          setStatus('success', 'Voice input added');
+        };
+
+        const cursorPos = queryInput.selectionStart ?? queryInput.value.length;
+        textBefore = queryInput.value.substring(0, cursorPos).replace(/\s+$/, '') + ' ';
+        textAfter  = queryInput.value.substring(cursorPos);
+        try { recognition.start(); } catch { setStatus('error', 'Mic unavailable'); }
+      });
+    } else {
+      micBtn.disabled = true;
+      micBtn.title = 'Speech recognition not supported in this browser';
+      micLabel.textContent = 'N/A';
+      micBtn.style.opacity = '0.3';
+    }
+
+    async function sendQuery() {
+      const model = modelInput.value.trim();
+      const query = queryInput.value.trim();
+
+      if (!serverUrl) { setStatus('error', 'Set serverUrl in config.js'); return; }
+      if (!model) { setStatus('error', 'Enter a model name'); return; }
+      if (!query) { setStatus('error', 'Enter a query'); return; }
+
+      let userMessage;
+
+      if (isImageSection && attachedImages.length > 0) {
+        const contentParts =[];
+        attachedImages.forEach(img => {
+          contentParts.push({
+            type: 'image_url',
+            image_url: { url: img.dataUrl }
+          });
+        });
+        contentParts.push({ type: 'text', text: query });
+        userMessage = { role: 'user', content: contentParts };
+      } else if (!isImageSection && attachedFiles.length > 0) {
+        const fileBlock = attachedFiles.map(f =>
+          `--- File: ${f.name} ---\n${f.content}`
+        ).join('\n\n');
+        userMessage = { role: 'user', content: fileBlock + '\n\n--- User Query ---\n' + query };
+      } else {
+        userMessage = { role: 'user', content: query };
+      }
+
+      chatHistory.push(userMessage);
+      updateBadge();
+
+      sendBtn.disabled = true;
+      responseBox.textContent = '';
+      tokenInfo.textContent = '';
+      setStatus('loading', 'Sending...');
+
+      const endpoint = serverUrl + '/api/chat/completions';
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+
+      const toolIds = (typeof CONFIG !== 'undefined' && CONFIG.sectionTools && CONFIG.sectionTools[sectionNum])
+        ? CONFIG.sectionTools[sectionNum] :[];
+      const knowledgeIds = (typeof CONFIG !== 'undefined' && CONFIG.sectionKnowledge && CONFIG.sectionKnowledge[sectionNum])
+        ? CONFIG.sectionKnowledge[sectionNum] : [];
+
+      const sectionSkill = sectionSkills[sectionNum] || '';
+      const contextBlock = previousContext ? `\n\nPROJECT CONTEXT:\n${previousContext}` : '';
+      const combinedSystemPrompt =[systemPrompt, sectionSkill].filter(Boolean).join('\n\n') + contextBlock;
+      const messages =[];
+      if (combinedSystemPrompt.trim()) {
+        messages.push({ role: 'system', content: combinedSystemPrompt });
+      }
+      messages.push(...chatHistory);
+
+      const maxTokens = typeof CONFIG !== 'undefined' && CONFIG.maxTokens !== undefined 
+      ? CONFIG.maxTokens 
+      : 10000;
+
+      const body = {
+        model: model,
+        messages: messages,
+        stream: true,
+        max_tokens: maxTokens
+      };
+
+      if (toolIds.length > 0) body.tool_ids = toolIds;
+      if (knowledgeIds.length > 0) body.files = knowledgeIds.map(id => ({ type: 'collection', id: id }));
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          chatHistory.pop();
+          updateBadge();
+          throw new Error(`HTTP ${res.status}: ${errText.slice(0, 300)}`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+        let buffer = '';
+
+        setStatus('loading', 'Streaming...');
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed === 'data: [DONE]') continue;
+            if (!trimmed.startsWith('data: ')) continue;
+
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const delta = json.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullText += delta;
+                responseBox.textContent = fullText;
+                responseBox.scrollTop = responseBox.scrollHeight;
+              }
+              if (json.usage) {
+                const u = json.usage;
+                tokenInfo.textContent = `tokens: ${u.prompt_tokens || '?'} in → ${u.completion_tokens || '?'} out`;
+                if (u.prompt_tokens) totalTokensIn = u.prompt_tokens;
+                if (u.completion_tokens) totalTokensOut += u.completion_tokens;
+              }
+            } catch (e) {}
+          }
+        }
+
+        if (!fullText && buffer) {
+          try {
+            const json = JSON.parse(buffer);
+            fullText = json.choices?.[0]?.message?.content || JSON.stringify(json, null, 2);
+            responseBox.textContent = fullText;
+          } catch (e) {}
+        }
+
+        if (!fullText) responseBox.textContent = '(Empty response from server)';
+
+        chatHistory.push({ role: 'assistant', content: fullText || '' });
+        updateBadge();
+        updateTokenBadge();
+        queryInput.value = '';
+        setStatus('success', 'Complete');
+
+      } catch (err) {
+        setStatus('error', 'Error');
+        responseBox.textContent = 'Error: ' + err.message +
+          '\n\nTips:\n• Check serverUrl in config.js\n• Ensure the model name is available on your server\n• Check your API key is valid';
+      } finally {
+        sendBtn.disabled = false;
+        queryInput.focus();
+      }
+    }
+  });
+</script>
+
+</body>
+</html>
