@@ -26,6 +26,7 @@ Tailscale is an identity-based connectivity platform that securely connects user
 
 ### Screenshots  
 You can simply download the 70 KB html file and open it to see it, however it wont function until you setup your config.js file (Setup Step 4).  
+Below is a screenshot of the main page and one of the drop down boxes.  
 <img width="1239" height="719" alt="SPAA1" src="https://github.com/user-attachments/assets/77280684-d9c2-41d3-bb75-b721d0796356" />  
-
+  
 <img width="922" height="864" alt="SPAA2" src="https://github.com/user-attachments/assets/133e5adb-eff4-4d48-b504-ffe344461c60" />
