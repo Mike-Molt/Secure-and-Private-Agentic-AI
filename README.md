@@ -19,7 +19,7 @@ Your LLM costs are managed in your Hugging Face account
 The code is simple, 100% transparent, and is easy to adapt to your personal or professional needs  
 
 ### Setup
-The setup instructions and the text for the config.file are embedded in the Readme section of the html file. You can read them on the code page, or download and open the html file in a browser and read there. Resources required:
-Hugging Face provides access to free, open source LLMs.
-Open WebUI is an open source, self-hosted AI platform that you setup on an AWS server, and which manages LLM deployment for you (and your users).
-Tailscale is an identity-based connectivity platform that securely connects user devices with the AWS server.
+The setup instructions and the text for the config.file are embedded in the Readme section of the html file. You can read them on the code page, or download and open the html file in a browser and read there. Resources required:  
+Hugging Face provides access to free, open source LLMs.  
+Open WebUI is an open source, self-hosted AI platform that you setup on an AWS server, and which manages LLM deployment for you (and your users).  
+Tailscale is an identity-based connectivity platform that securely connects user devices with the AWS server.  
