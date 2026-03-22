@@ -16,6 +16,7 @@ Choose from thousands of different models on Hugging Face and host private LLMs.
 Once setup, other users can share your network - add users in Open WebUI and Tailscale.  
 Use the LLM network and SPAA console across your enterprise - scales easily.  
 Your LLM costs are managed in your Hugging Face account.  
+Minimise LLM costs by using different LLMs for different complexity tasks, and token management (counters and triggers).
 The code is simple, 100% transparent, and is easy to adapt to your personal or professional needs.  
 
 ## Setup
