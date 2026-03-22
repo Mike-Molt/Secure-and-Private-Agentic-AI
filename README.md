@@ -1,12 +1,12 @@
 # Secure-and-Private-Agentic-AI
-A secure, private agentic AI interface. Your data and AI are sandboxed from the internet, and your traffic is either encrypted or off the public internet entirely.
-
-## Description
-Enables individuals, enterprises, friends, community groups etc, to have a private and secure AI environment that they share and build together. The interface and all data reside on an AWS server, which is sandboxed from the internet. The AI can only see the data you have uploaded to your Knowledge Collections. Once set up, you and your users can connect to your AIs from most types of devices by simply installing one security app (Tailscale) and opening a browser. A sample agent setup of 5 agents is demonstrated, however you can have as many or as few agents as you wish, using different specialised LLMs, Knowledge, skills and tools. Simply modify the 70 KB html file and the config.js file to create/edit/delete agents, or upload the html file to your coder agent and ask the LLM to modify it for you with any features you wish.  
+A secure, private agentic AI interface. Your data and AI are sandboxed from the internet, and your traffic is either encrypted or off the public internet entirely.  
 <br>
 On Android in Chrome:  
 <br>
 <img width="200" height="430" alt="SPAA3" src="https://github.com/user-attachments/assets/648d3195-c6fc-46b1-8ea8-0eb36a0ae45d" />  <img width="200" height="430" alt="SPAA4" src="https://github.com/user-attachments/assets/adc70669-9e18-458c-bd06-d3c587dba2d2" />
+## Description
+Enables individuals, enterprises, friends, community groups etc, to have a private and secure AI environment that they share and build together. The interface and all data reside on an AWS server, which is sandboxed from the internet. The AI can only see the data you have uploaded to your Knowledge Collections. Once set up, you and your users can connect to your AIs from most types of devices by simply installing one security app (Tailscale) and opening a browser. A sample agent setup of 5 agents is demonstrated, however you can have as many or as few agents as you wish, using different specialised LLMs, Knowledge, skills and tools. Simply modify the 70 KB html file and the config.js file to create/edit/delete agents, or upload the html file to your coder agent and ask the LLM to modify it for you with any features you wish.  
+
 ## Introduction
 A lightweight, private and secure agentic AI console.  
 A client-side (local) browser application using a 70 KB html file.  
