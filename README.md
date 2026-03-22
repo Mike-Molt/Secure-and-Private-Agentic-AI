@@ -6,7 +6,7 @@ Enables individuals, enterprises, friends, community groups etc, to have a priva
 <br>
 On Android:  
 <br>
-<img width="200" height="430" alt="SPAA3" src="" />  <img width="200" height="430" alt="SPAA4" src="https://github.com/user-attachments/assets/adc70669-9e18-458c-bd06-d3c587dba2d2" />
+<img width="200" height="430" alt="SPAA3" src="https://github.com/user-attachments/assets/648d3195-c6fc-46b1-8ea8-0eb36a0ae45d" />  <img width="200" height="430" alt="SPAA4" src="https://github.com/user-attachments/assets/adc70669-9e18-458c-bd06-d3c587dba2d2" />
 ## Introduction
 A lightweight, private and secure agentic AI console.  
 A client-side (local) browser application using a 70 KB html file.  
