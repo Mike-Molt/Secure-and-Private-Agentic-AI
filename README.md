@@ -26,9 +26,9 @@ Open WebUI is an open source, self-hosted AI platform that you setup on an AWS s
 Tailscale is an identity-based connectivity platform that securely connects user devices with the AWS server.  
 AWS Private Link sends traffic between your two AWS servers via private IP addresses on the AWS network, such that your traffic never traverses the public internet.  
 
-### Screenshots  
-You can simply download the 70 KB html file and open it to see it, however it wont function until you setup your config.js file (Setup Step 4).  
-Below is a screenshot of the main page and one of the drop down boxes.  
+## Screenshots  
+You can simply download the 70 KB html file and open it in a browser to see it, however it wont function until you setup your config.js file (Setup Step 4).  
+Below is a screenshot of the AI interface with 5 example agents, and the drop down box for the Coder agent.  
 <br>
 <img width="1239" height="719" alt="SPAA1" src="https://github.com/user-attachments/assets/77280684-d9c2-41d3-bb75-b721d0796356" />  
   
