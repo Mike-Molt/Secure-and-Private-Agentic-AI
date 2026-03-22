@@ -3,6 +3,7 @@ A secure, private agentic AI interface. Your data and AI are sandboxed from the 
 
 ## Description
 Enables individuals, enterprises, friends, community groups etc, to have a private and secure AI environment that they share and build together. The interface and all data reside on an AWS server, which is sandboxed from the internet. The AI can only see the data you have uploaded to your Knowledge Collections. Once set up, you and your users can connect to your AIs from most types of devices by simply installing one security app (Tailscale) and opening a browser. A sample agent setup of 5 agents is demonstrated, however you can have as many or as few agents as you wish, using different specialised LLMs, Knowledge, skills and tools. Simply modify the 70 KB html file and the config.js file to create/edit/delete agents, or upload the html file to your coder agent and ask the LLM to modify it for you with any features you wish.  
+On Android:
 <img width="200" height="430" alt="SPAA3" src="https://github.com/user-attachments/assets/0cdae221-db83-4e8c-a1da-dacb5655b6e4" />     <img width="200" height="430" alt="SPAA4" src="https://github.com/user-attachments/assets/adc70669-9e18-458c-bd06-d3c587dba2d2" />
 ## Introduction
 A lightweight, private and secure agentic AI console.  
@@ -29,10 +30,9 @@ AWS Private Link sends traffic between your two AWS servers via private IP addre
 
 ## Screenshots  
 You can simply download the 70 KB html file and open it in a browser to see it, however it wont function until you setup your config.js file (Setup Step 4).  
-Below is a screenshot of the AI interface with 5 example agents and the drop down box for the Coder agent (PC laptop), and on Android.  
+Below is a screenshot of the AI interface with 5 example agents and the drop down box for the Coder agent (PC laptop).
 <br>
 <img width="1239" height="719" alt="SPAA1" src="https://github.com/user-attachments/assets/77280684-d9c2-41d3-bb75-b721d0796356" />  
   
 <img width="922" height="864" alt="SPAA2" src="https://github.com/user-attachments/assets/133e5adb-eff4-4d48-b504-ffe344461c60" />  
 
-<img width="400" height="864" alt="SPAA3" src="https://github.com/user-attachments/assets/0cdae221-db83-4e8c-a1da-dacb5655b6e4" />
