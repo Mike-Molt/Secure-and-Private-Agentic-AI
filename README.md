@@ -35,9 +35,4 @@ Below is a screenshot of the AI interface with 5 example agents and the drop dow
   
 <img width="922" height="864" alt="SPAA2" src="https://github.com/user-attachments/assets/133e5adb-eff4-4d48-b504-ffe344461c60" />  
 
-<img width="922" height="864" alt="SPAA3" src="https://github.com/user-attachments/assets/0cdae221-db83-4e8c-a1da-dacb5655b6e4" />
-![android](https://github.com/user-attachments/assets/da31f5bf-5a4c-4f7b-a17f-7a01ab142395)
-
-
-
-
+<img width="922" height="250" alt="SPAA3" src="https://github.com/user-attachments/assets/0cdae221-db83-4e8c-a1da-dacb5655b6e4" />
