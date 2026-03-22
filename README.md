@@ -24,6 +24,7 @@ Resources required:
 Hugging Face provides access to free, open source LLMs. You can get a free account to get started, and will need to upgrade to a paid account for the full setup.  
 Open WebUI is an open source, self-hosted AI platform that you setup on an AWS server, and which manages LLM deployment for you (and your users).  
 Tailscale is an identity-based connectivity platform that securely connects user devices with the AWS server.  
+AWS Private Link sends traffic between your two AWS servers via private IP addresses on the AWS network, such that your traffic never traverses the public internet.  
 
 ### Screenshots  
 You can simply download the 70 KB html file and open it to see it, however it wont function until you setup your config.js file (Setup Step 4).  
