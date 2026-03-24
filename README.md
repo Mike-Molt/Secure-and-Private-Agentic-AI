@@ -23,7 +23,7 @@ Minimise LLM costs by using different LLMs for different complexity tasks, and t
 The code is simple, 100% transparent, and is easy to adapt to your personal or professional needs.  
 
 ## Setup
-The setup instructions and the text for the config.file are embedded in the Readme section of the html file. You can read them on the html code page, or download and open the 70 KB html file in a browser and read there. For peace of mind, before you open the html file you can upload the html file to an AI and ask: do a security assessment of this AI agent interface, including data security and malicious content.  
+The setup instructions and the text for the config.file are embedded in the Readme section of the html file. You can read them on the html code page, or download and open the 70 KB html file in a browser and read there. Before you open the html file you can upload the html file to an AI and ask to do a security assessment of this AI agent interface, including data security and malicious content.  
 Resources required:  
 Hugging Face provides access to free, open source LLMs. You can get a free account to get started, and will need to upgrade to a paid account for the full setup.  
 Open WebUI is an open source, self-hosted AI platform that you setup on an AWS server, and which manages LLM deployment for you (and your users).  
